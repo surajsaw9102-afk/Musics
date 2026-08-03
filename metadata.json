@@ -1,0 +1,6 @@
+{
+  "name": "Aura Music",
+  "description": "A premium-quality, 100% free music streaming platform with glassmorphic UI, custom themes, offline model architecture, and modular architecture.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
