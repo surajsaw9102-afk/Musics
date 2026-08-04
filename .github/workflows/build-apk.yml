@@ -23,10 +23,24 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle'
 
-      - name: Grant Execute Permission for Gradle Wrapper
-        run: chmod +x gradlew
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '9.3.1'
+
+      - name: Validate or Repair Gradle Wrapper
+        run: |
+          if ! java -jar gradle/wrapper/gradle-wrapper.jar --version > /dev/null 2>&1; then
+            echo "Gradle wrapper JAR is missing or corrupted. Restoring/Regenerating..."
+            if [ -f gradle/wrapper/gradle-wrapper.jar.base64 ]; then
+              base64 -d gradle/wrapper/gradle-wrapper.jar.base64 > gradle/wrapper/gradle-wrapper.jar || base64 --decode gradle/wrapper/gradle-wrapper.jar.base64 > gradle/wrapper/gradle-wrapper.jar
+            fi
+            if ! java -jar gradle/wrapper/gradle-wrapper.jar --version > /dev/null 2>&1; then
+              gradle wrapper --gradle-version 9.3.1
+            fi
+          fi
+          chmod +x gradlew
 
       - name: Build Debug APK with Gradle
         run: ./gradlew assembleDebug --no-daemon
@@ -37,3 +51,4 @@ jobs:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 7
+
