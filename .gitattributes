@@ -1,0 +1,18 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Ensure shell scripts always have LF line endings
+gradlew text eol=lf
+*.sh text eol=lf
+
+# Ensure Windows batch files always have CRLF line endings
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Denote all binary files
+*.jar binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.keystore binary
