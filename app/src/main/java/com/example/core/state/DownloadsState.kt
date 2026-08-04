@@ -12,9 +12,13 @@ import com.example.core.downloads.DownloadState
 import com.example.core.downloads.DownloadedAlbum
 import com.example.core.downloads.DownloadedPlaylist
 import com.example.core.network.NetworkMonitor
+import com.example.core.offline.DownloadedArtist
 import com.example.core.offline.OfflineRepository
+import com.example.core.offline.OfflineSortOption
 import com.example.core.provider.DownloadQuality
 import com.example.core.storage.StorageManager
+import com.example.core.sync.SyncManager
+import com.example.core.sync.SyncStatus
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -22,6 +26,8 @@ import kotlinx.coroutines.flow.stateIn
 
 data class DownloadsData(
     val downloadedSongs: List<SongEntity> = emptyList(),
+    val recentlyDownloadedSongs: List<SongEntity> = emptyList(),
+    val downloadedArtists: List<DownloadedArtist> = emptyList(),
     val allDownloadItems: List<DownloadItem> = emptyList(),
     val activeDownloads: List<DownloadItem> = emptyList(),
     val pausedDownloads: List<DownloadItem> = emptyList(),
@@ -37,7 +43,8 @@ data class DownloadsData(
     val isOfflineMode: Boolean = false,
     val isOnline: Boolean = true,
     val connectionTypeLabel: String = "Wi-Fi (High Speed)",
-    val cacheStats: CacheStats = CacheStats()
+    val cacheStats: CacheStats = CacheStats(),
+    val syncStatus: SyncStatus = SyncStatus()
 ) {
     val totalStorageUsedMb: Double
         get() = totalMusicStorageMb + cacheStorageMb
@@ -49,8 +56,9 @@ class DownloadsState : ViewModel() {
         DownloadManager.state,
         NetworkMonitor.status,
         SmartCacheManager.stats,
-        StorageManager.stats
-    ) { dlState, netStatus, cacheStats, storeStats ->
+        StorageManager.stats,
+        SyncManager.syncStatus
+    ) { dlState, netStatus, cacheStats, storeStats, syncStatus ->
 
         val itemsMap = dlState.itemsMap.values.toList()
         val downloadedSongs = itemsMap.filter { it.state == DownloadState.DOWNLOADED }.map { it.song }
@@ -60,9 +68,13 @@ class DownloadsState : ViewModel() {
 
         val albums = OfflineRepository.getOfflineAlbums()
         val playlists = OfflineRepository.getOfflinePlaylists()
+        val artists = OfflineRepository.getOfflineArtists()
+        val recentlyDownloaded = OfflineRepository.getRecentlyDownloaded(5)
 
         DownloadsData(
             downloadedSongs = downloadedSongs,
+            recentlyDownloadedSongs = recentlyDownloaded,
+            downloadedArtists = artists,
             allDownloadItems = itemsMap,
             activeDownloads = active,
             pausedDownloads = paused,
@@ -78,7 +90,8 @@ class DownloadsState : ViewModel() {
             isOfflineMode = netStatus.isForceOfflineMode || !netStatus.isOnline,
             isOnline = netStatus.isOnline,
             connectionTypeLabel = netStatus.connectionType.label,
-            cacheStats = cacheStats
+            cacheStats = cacheStats,
+            syncStatus = syncStatus
         )
     }.stateIn(
         scope = viewModelScope,
@@ -129,6 +142,10 @@ class DownloadsState : ViewModel() {
 
     fun toggleOfflineMode(enabled: Boolean) {
         NetworkMonitor.setForceOffline(enabled)
+    }
+
+    fun triggerSync() {
+        SyncManager.performFullSync()
     }
 
     fun clearCache() {

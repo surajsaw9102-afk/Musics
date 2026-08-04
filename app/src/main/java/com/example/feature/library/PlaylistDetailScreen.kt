@@ -52,6 +52,8 @@ fun PlaylistDetailScreen(
 
     var showEditDialog by remember { mutableStateOf(false) }
     var showAddSongsDialog by remember { mutableStateOf(false) }
+    var showCollabSheet by remember { mutableStateOf(false) }
+    var showShareSheet by remember { mutableStateOf(false) }
 
     if (playlist == null) {
         AuraEmptyState(
@@ -100,6 +102,22 @@ fun PlaylistDetailScreen(
                 }
             },
             actions = {
+                IconButton(onClick = { showShareSheet = true }) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Share Playlist",
+                        tint = AuraColors.NeonCyan
+                    )
+                }
+
+                IconButton(onClick = { showCollabSheet = true }) {
+                    Icon(
+                        imageVector = Icons.Default.GroupAdd,
+                        contentDescription = "Collaborative Playlist",
+                        tint = AuraColors.ElectricPurple
+                    )
+                }
+
                 IconButton(onClick = { libraryState.togglePinPlaylist(playlist.id) }) {
                     Icon(
                         imageVector = if (playlist.pinned) Icons.Filled.Star else Icons.Outlined.StarBorder,
@@ -468,6 +486,35 @@ fun PlaylistDetailScreen(
             onAddSongs = { selectedSongIds ->
                 libraryState.addSongsToPlaylist(playlist.id, selectedSongIds)
                 showAddSongsDialog = false
+            }
+        )
+    }
+
+    if (showCollabSheet) {
+        com.example.feature.social.CollaborativePlaylistManagerDialog(
+            playlistId = playlist.id,
+            onDismiss = { showCollabSheet = false }
+        )
+    }
+
+    if (showShareSheet) {
+        com.example.feature.social.AuraShareSheet(
+            shareContent = com.example.feature.social.ShareContent(
+                contentType = com.example.feature.social.ShareContentType.PLAYLIST,
+                id = playlist.id,
+                title = playlist.name,
+                subtitle = "${playlist.songIds.size} songs • ${playlist.description}",
+                imageUrl = playlist.coverUrl,
+                shareUrl = com.example.feature.social.ShareManager.createShareUrl(com.example.feature.social.ShareContentType.PLAYLIST, playlist.id),
+                deepLink = com.example.feature.social.ShareManager.createDeepLink(com.example.feature.social.ShareContentType.PLAYLIST, playlist.id),
+                description = playlist.description
+            ),
+            onDismiss = { showShareSheet = false },
+            onPlayClick = {
+                showShareSheet = false
+                if (songList.isNotEmpty()) {
+                    onPlayPlaylist(songList)
+                }
             }
         )
     }

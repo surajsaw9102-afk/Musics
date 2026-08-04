@@ -12,6 +12,20 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+enum class OfflineSortOption(val label: String) {
+    TITLE("Song Title"),
+    ARTIST("Artist Name"),
+    DATE_DOWNLOADED("Recently Downloaded"),
+    SIZE("File Size")
+}
+
+data class DownloadedArtist(
+    val artistId: String,
+    val artistName: String,
+    val avatarUrl: String,
+    val songCount: Int
+)
+
 object OfflineRepository {
 
     private val _isOfflineAvailable = MutableStateFlow(true)
@@ -23,7 +37,6 @@ object OfflineRepository {
             return downloadItem.localFilePath
         }
 
-        // If cached in SmartCacheManager
         if (SmartCacheManager.isSongCached(song.id)) {
             return song.audioUrl
         }
@@ -37,11 +50,41 @@ object OfflineRepository {
         return isDownloaded || isCached
     }
 
-    fun getOfflineSongs(): List<SongEntity> {
-        val downloaded = DownloadManager.getDownloadedSongs()
-        val cached = SmartCacheManager.getCachedSongs()
-        val combined = (downloaded + cached).distinctBy { it.id }
-        return combined
+    fun getOfflineSongs(sortOption: OfflineSortOption = OfflineSortOption.DATE_DOWNLOADED): List<SongEntity> {
+        val downloadedItems = DownloadManager.state.value.itemsMap.values
+            .filter { it.state == DownloadState.DOWNLOADED }
+
+        val songs = downloadedItems.map { it.song }
+
+        return when (sortOption) {
+            OfflineSortOption.TITLE -> songs.sortedBy { it.title }
+            OfflineSortOption.ARTIST -> songs.sortedBy { it.artistName }
+            OfflineSortOption.DATE_DOWNLOADED -> {
+                val itemMap = downloadedItems.associateBy { it.song.id }
+                songs.sortedByDescending { itemMap[it.id]?.completedAt ?: 0L }
+            }
+            OfflineSortOption.SIZE -> songs.sortedByDescending { it.durationMs }
+        }
+    }
+
+    fun searchOfflineSongs(query: String, sortOption: OfflineSortOption = OfflineSortOption.TITLE): List<SongEntity> {
+        val allOffline = getOfflineSongs(sortOption)
+        if (query.isBlank()) return allOffline
+        val trimmed = query.trim().lowercase()
+        return allOffline.filter {
+            it.title.lowercase().contains(trimmed) ||
+                    it.artistName.lowercase().contains(trimmed) ||
+                    it.albumTitle.lowercase().contains(trimmed) ||
+                    it.genre.lowercase().contains(trimmed)
+        }
+    }
+
+    fun getRecentlyDownloaded(limit: Int = 5): List<SongEntity> {
+        val downloadedItems = DownloadManager.state.value.itemsMap.values
+            .filter { it.state == DownloadState.DOWNLOADED }
+            .sortedByDescending { it.completedAt ?: 0L }
+
+        return downloadedItems.take(limit).map { it.song }
     }
 
     fun getOfflineAlbums(): List<DownloadedAlbum> {
@@ -81,6 +124,21 @@ object OfflineRepository {
                     totalSizeMb = offlineInPlaylist.size * 32.0
                 )
             }
+        }
+    }
+
+    fun getOfflineArtists(): List<DownloadedArtist> {
+        val downloadedSongs = DownloadManager.getDownloadedSongs()
+        val groupedByArtist = downloadedSongs.groupBy { it.artistId }
+
+        return groupedByArtist.map { (artistId, songs) ->
+            val first = songs.first()
+            DownloadedArtist(
+                artistId = artistId,
+                artistName = first.artistName,
+                avatarUrl = first.coverUrl,
+                songCount = songs.size
+            )
         }
     }
 }

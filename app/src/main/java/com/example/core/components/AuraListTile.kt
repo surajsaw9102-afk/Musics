@@ -24,6 +24,7 @@ import coil.compose.AsyncImage
 import com.example.core.designsystem.AuraColors
 import com.example.core.designsystem.AuraRadius
 import com.example.core.designsystem.auraGlass
+import com.example.core.designsystem.auraPressClickable
 
 @Composable
 fun AuraListTile(
@@ -42,7 +43,7 @@ fun AuraListTile(
             .testTag(testTag)
             .fillMaxWidth()
             .auraGlass(shape = RoundedCornerShape(AuraRadius.Medium))
-            .clickable(onClick = onClick)
+            .auraPressClickable(onClick = onClick)
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

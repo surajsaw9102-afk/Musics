@@ -19,8 +19,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.core.components.*
 import com.example.core.designsystem.AuraColors
 import com.example.core.designsystem.AuraThemeMode
-import com.example.core.state.SettingsState
-import com.example.core.state.ThemeState
+import com.example.core.state.*
 
 @Composable
 fun SettingsScreen(
@@ -34,24 +33,27 @@ fun SettingsScreen(
 
     var showThemeDialog by remember { mutableStateOf(false) }
     var showAudioDialog by remember { mutableStateOf(false) }
+    var showStorageDialog by remember { mutableStateOf(false) }
+    var showHistoryDialog by remember { mutableStateOf(false) }
+    var showPersonalizationDialog by remember { mutableStateOf(false) }
+    var showLicensesDialog by remember { mutableStateOf(false) }
+    var showExportDataDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
             .testTag(testTag)
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         AuraSectionHeader(
             title = "App Settings",
-            subtitle = "Customize appearance, audio & notifications"
+            subtitle = "Complete control over appearance, audio & playback"
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Appearance Section
-        SettingsGroupTitle("Appearance & Theme")
-
+        // 1. Appearance & Theme
+        SettingsGroupTitle("Appearance & Visual Theme")
         AuraGlassCard(modifier = Modifier.fillMaxWidth()) {
             SettingsClickableRow(
                 icon = Icons.Default.Palette,
@@ -63,111 +65,193 @@ fun SettingsScreen(
                 },
                 onClick = { showThemeDialog = true }
             )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Language & Region
-        SettingsGroupTitle("Language & Region")
-
-        AuraGlassCard(modifier = Modifier.fillMaxWidth()) {
-            SettingsClickableRow(
-                icon = Icons.Default.Language,
-                title = "App Language",
-                subtitle = settings.selectedLanguage,
-                onClick = {}
-            )
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
             SettingsClickableRow(
-                icon = Icons.Default.Public,
-                title = "Country / Region",
-                subtitle = settings.selectedCountry,
-                onClick = {}
+                icon = Icons.Default.ColorLens,
+                title = "Accent Color Selection",
+                subtitle = settings.accentColor.displayName,
+                onClick = { showThemeDialog = true }
+            )
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+            SettingsToggleRow(
+                icon = Icons.Default.MotionPhotosOff,
+                title = "Reduced Motion Preference",
+                subtitle = "Disable heavy blur and complex animations",
+                checked = settings.isReducedMotionEnabled,
+                onCheckedChange = settingsState::toggleReducedMotion
             )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        // 2. Playback Preferences
+        SettingsGroupTitle("Playback Controls")
+        AuraGlassCard(modifier = Modifier.fillMaxWidth()) {
+            SettingsToggleRow(
+                icon = Icons.Default.Tune,
+                title = "Crossfade Transitions",
+                subtitle = "Smooth crossfade between tracks (${settings.crossfadeSeconds}s)",
+                checked = settings.isCrossfadeEnabled,
+                onCheckedChange = settingsState::toggleCrossfade
+            )
 
-        // Audio & Playback
-        SettingsGroupTitle("Audio Quality & Playback")
+            if (settings.isCrossfadeEnabled) {
+                Column(modifier = Modifier.padding(start = 34.dp, end = 8.dp, top = 4.dp, bottom = 8.dp)) {
+                    Text(
+                        text = "Crossfade Duration: ${settings.crossfadeSeconds} Seconds",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AuraColors.NeonCyan
+                    )
+                    Slider(
+                        value = settings.crossfadeSeconds.toFloat(),
+                        onValueChange = { settingsState.setCrossfadeDuration(it.toInt()) },
+                        valueRange = 0f..12f,
+                        steps = 11,
+                        colors = SliderDefaults.colors(
+                            thumbColor = AuraColors.NeonCyan,
+                            activeTrackColor = AuraColors.ElectricPurple
+                        )
+                    )
+                }
+            }
 
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+            SettingsToggleRow(
+                icon = Icons.Default.GraphicEq,
+                title = "Gapless Playback",
+                subtitle = "Eliminate silent gaps between album tracks",
+                checked = settings.isGaplessEnabled,
+                onCheckedChange = settingsState::toggleGapless
+            )
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+            SettingsToggleRow(
+                icon = Icons.Default.VolumeUp,
+                title = "Normalize Volume Level",
+                subtitle = "Set consistent audio output across all songs",
+                checked = settings.isNormalizeVolumeEnabled,
+                onCheckedChange = settingsState::toggleNormalizeVolume
+            )
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+            SettingsToggleRow(
+                icon = Icons.Default.Autorenew,
+                title = "Autoplay Similar Music",
+                subtitle = "Keep listening when your queue finishes",
+                checked = settings.isAutoplayEnabled,
+                onCheckedChange = settingsState::toggleAutoplay
+            )
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+            SettingsToggleRow(
+                icon = Icons.Default.Explicit,
+                title = "Explicit Content Filter",
+                subtitle = "Filter explicit songs and lyrics",
+                checked = settings.isExplicitFilterEnabled,
+                onCheckedChange = settingsState::toggleExplicitFilter
+            )
+        }
+
+        // 3. Audio & Quality
+        SettingsGroupTitle("Audio Quality & Soundstage")
         AuraGlassCard(modifier = Modifier.fillMaxWidth()) {
             SettingsClickableRow(
-                icon = Icons.Default.GraphicEq,
+                icon = Icons.Default.HighQuality,
                 title = "Streaming Audio Quality",
-                subtitle = "${settings.audioQuality} • 100% Free",
+                subtitle = settings.streamingQuality,
                 onClick = { showAudioDialog = true }
             )
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
             SettingsClickableRow(
-                icon = Icons.Default.Equalizer,
-                title = "Equalizer Preset",
-                subtitle = "Bass Boosted & Crystal Clear",
-                onClick = {}
+                icon = Icons.Default.SurroundSound,
+                title = "Audio Output Mode",
+                subtitle = "${settings.audioOutputMode.title} • ${settings.audioOutputMode.description}",
+                onClick = { showAudioDialog = true }
             )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Notifications & Data
-        SettingsGroupTitle("Notifications & Privacy")
-
-        AuraGlassCard(modifier = Modifier.fillMaxWidth()) {
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
             SettingsToggleRow(
-                icon = Icons.Default.Notifications,
-                title = "New Release Notifications",
-                subtitle = "Get notified when favorite artists release music",
-                checked = settings.isPushNotificationsEnabled,
-                onCheckedChange = settingsState::toggleNotifications
+                icon = Icons.Default.Wifi,
+                title = "Download Over Wi-Fi Only",
+                subtitle = "Prevent downloading music on mobile data",
+                checked = settings.isDownloadOverWifiOnly,
+                onCheckedChange = settingsState::toggleWifiOnlyDownloads
             )
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
             SettingsToggleRow(
                 icon = Icons.Default.DataSaverOn,
                 title = "Data Saver Mode",
-                subtitle = "Optimize stream quality over cellular networks",
+                subtitle = "Compress stream bandwidth over cellular networks",
                 checked = settings.isDataSaverEnabled,
                 onCheckedChange = settingsState::toggleDataSaver
             )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Storage & Cache
-        SettingsGroupTitle("Storage & Cache")
-
+        // 4. Personalization Controls
+        SettingsGroupTitle("Personalization & Discovery")
         AuraGlassCard(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "App Cache Size",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "${settings.cacheSizeMb} MB cached album art & metadata",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            SettingsClickableRow(
+                icon = Icons.Default.Tune,
+                title = "Personalization Preferences",
+                subtitle = "Startup screen, discovery style & mood filters",
+                onClick = { showPersonalizationDialog = true }
+            )
+        }
 
-                AuraButton(
-                    text = "Clear Cache",
-                    onClick = settingsState::clearCache,
-                    variant = AuraButtonVariant.OUTLINED
-                )
-            }
+        // 5. Library, History & Storage
+        SettingsGroupTitle("Library, History & Storage")
+        AuraGlassCard(modifier = Modifier.fillMaxWidth()) {
+            SettingsClickableRow(
+                icon = Icons.Default.History,
+                title = "History Management",
+                subtitle = "Manage search and play history items",
+                onClick = { showHistoryDialog = true }
+            )
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+            SettingsClickableRow(
+                icon = Icons.Default.Storage,
+                title = "Storage & Cleanup Dashboard",
+                subtitle = "${settings.cacheSizeMb} MB cached • ${settings.downloadSizeMb} MB downloads",
+                onClick = { showStorageDialog = true }
+            )
+        }
+
+        // 6. Privacy & Local Data
+        SettingsGroupTitle("Privacy & Local Data Controls")
+        AuraGlassCard(modifier = Modifier.fillMaxWidth()) {
+            SettingsClickableRow(
+                icon = Icons.Default.Visibility,
+                title = "Listening History Visibility",
+                subtitle = settings.historyVisibility.title,
+                onClick = {}
+            )
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+            SettingsClickableRow(
+                icon = Icons.Default.Download,
+                title = "Export Local App Data",
+                subtitle = "Export settings, favorites and history as JSON",
+                onClick = { showExportDataDialog = true }
+            )
+        }
+
+        // 7. App Info & Support
+        SettingsGroupTitle("App Info & Support")
+        AuraGlassCard(modifier = Modifier.fillMaxWidth()) {
+            SettingsClickableRow(
+                icon = Icons.Default.Info,
+                title = "About Aura Music Stream",
+                subtitle = "v3.2.0-AURA • 100% Free Lifetime Music Experience",
+                onClick = { showLicensesDialog = true }
+            )
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+            SettingsClickableRow(
+                icon = Icons.Default.Code,
+                title = "Open-Source Licenses",
+                subtitle = "View third-party software disclosures",
+                onClick = { showLicensesDialog = true }
+            )
         }
     }
 
-    // Theme Picker Dialog
+    // Dialogs
     if (showThemeDialog) {
         AuraGlassDialog(
             onDismissRequest = { showThemeDialog = false },
-            title = "Choose Theme Mode"
+            title = "Choose Theme & Accent"
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AuraChip(
@@ -197,34 +281,107 @@ fun SettingsScreen(
                     },
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Select Accent Color", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+
+                AuraAccentColor.values().forEach { accent ->
+                    AuraChip(
+                        label = accent.displayName,
+                        isSelected = settings.accentColor == accent,
+                        onClick = {
+                            settingsState.setAccentColor(accent)
+                            showThemeDialog = false
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         }
     }
 
-    // Audio Quality Dialog
     if (showAudioDialog) {
         AuraGlassDialog(
             onDismissRequest = { showAudioDialog = false },
-            title = "Audio Quality (100% Free)"
+            title = "Audio Quality & Spatial Settings"
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                AuraChip(
-                    label = "Lossless FLAC (24-bit/96kHz) - Best",
-                    isSelected = settings.audioQuality.contains("FLAC"),
-                    onClick = {
-                        settingsState.updateAudioQuality("Lossless FLAC (Hi-Res)")
-                        showAudioDialog = false
-                    },
-                    modifier = Modifier.fillMaxWidth()
+                Text("Streaming Quality (100% Free)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+
+                listOf("Lossless FLAC (24-bit/96kHz)", "High Quality (320 kbps AAC)", "Normal (160 kbps)").forEach { quality ->
+                    AuraChip(
+                        label = quality,
+                        isSelected = settings.streamingQuality == quality,
+                        onClick = {
+                            settingsState.updateStreamingQuality(quality)
+                            showAudioDialog = false
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Spatial Output Mode", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+
+                AudioOutputMode.values().forEach { mode ->
+                    AuraChip(
+                        label = "${mode.title} — ${mode.description}",
+                        isSelected = settings.audioOutputMode == mode,
+                        onClick = {
+                            settingsState.setAudioOutputMode(mode)
+                            showAudioDialog = false
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
+    }
+
+    if (showStorageDialog) {
+        StorageDashboardDialog(onDismissRequest = { showStorageDialog = false })
+    }
+
+    if (showHistoryDialog) {
+        HistoryManagerDialog(onDismissRequest = { showHistoryDialog = false })
+    }
+
+    if (showPersonalizationDialog) {
+        PersonalizationDialog(onDismissRequest = { showPersonalizationDialog = false })
+    }
+
+    if (showLicensesDialog) {
+        OpenSourceLicensesDialog(onDismissRequest = { showLicensesDialog = false })
+    }
+
+    if (showExportDataDialog) {
+        AuraGlassDialog(
+            onDismissRequest = { showExportDataDialog = false },
+            title = "Export Local App Data"
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "Local backup generated successfully:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AuraColors.NeonCyan
                 )
-                AuraChip(
-                    label = "High Quality (320 kbps AAC)",
-                    isSelected = settings.audioQuality.contains("320"),
-                    onClick = {
-                        settingsState.updateAudioQuality("High Quality (320 kbps)")
-                        showAudioDialog = false
-                    },
-                    modifier = Modifier.fillMaxWidth()
+
+                Surface(
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Text(
+                        text = "{\n  \"app\": \"Aura Music Stream\",\n  \"user\": \"Alex Vance\",\n  \"saved_tracks\": 1420,\n  \"playlists\": 8,\n  \"version\": \"3.2.0\"\n}",
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+
+                AuraButton(
+                    text = "Close",
+                    onClick = { showExportDataDialog = false },
+                    modifier = Modifier.fillMaxWidth(),
+                    variant = AuraButtonVariant.PRIMARY_GRADIENT
                 )
             }
         }
@@ -238,7 +395,7 @@ private fun SettingsGroupTitle(title: String) {
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.Bold,
         color = AuraColors.NeonCyan,
-        modifier = Modifier.padding(bottom = 8.dp)
+        modifier = Modifier.padding(bottom = 4.dp, top = 8.dp)
     )
 }
 

@@ -94,6 +94,12 @@ class PlayerState : ViewModel() {
 
     fun playSong(song: SongEntity, newQueue: List<SongEntity>? = null) {
         com.example.core.cache.SmartCacheManager.recordSongPlay(song)
+        com.example.feature.social.ActivityFeedRepository.recordListeningActivity(
+            title = song.title,
+            artist = song.artistName,
+            coverUrl = song.coverUrl,
+            songId = song.id
+        )
         AuraAudioPlayerManager.playSong(song, newQueue)
     }
 

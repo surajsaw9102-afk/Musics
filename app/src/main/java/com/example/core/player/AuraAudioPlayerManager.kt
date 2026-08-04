@@ -314,6 +314,16 @@ object AuraAudioPlayerManager : PlayerController {
         _state.value = _state.value.copy(queue = updatedQueue)
     }
 
+    fun updateUpcomingQueue(songs: List<SongEntity>) {
+        val current = _state.value.currentSong
+        if (current != null) {
+            val newQueue = listOf(current) + songs.filter { it.id != current.id }
+            _state.value = _state.value.copy(queue = newQueue, currentIndex = 0)
+        } else {
+            _state.value = _state.value.copy(queue = songs, currentIndex = 0)
+        }
+    }
+
     override fun addNext(song: SongEntity) {
         val currentIdx = _state.value.currentIndex
         val updatedQueue = _state.value.queue.toMutableList()

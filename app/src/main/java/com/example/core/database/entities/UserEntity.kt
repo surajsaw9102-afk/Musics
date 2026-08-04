@@ -10,6 +10,7 @@ data class UserEntity(
     val username: String,
     val email: String,
     val photoUrl: String? = null,
+    val bio: String = "Audiophile, Synthwave lover & digital explorer.",
     val language: String = "English",
     val country: String = "United States",
     val themeMode: String = "DARK",

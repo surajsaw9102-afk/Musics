@@ -30,6 +30,7 @@ import coil.compose.AsyncImage
 import com.example.core.designsystem.AuraColors
 import com.example.core.designsystem.AuraRadius
 import com.example.core.designsystem.auraGlass
+import com.example.core.designsystem.auraPressClickable
 
 @Composable
 fun AuraGlassCard(
@@ -39,19 +40,15 @@ fun AuraGlassCard(
     testTag: String = "aura_glass_card",
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val clickableMod = if (onClick != null) {
-        Modifier.clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = ripple(color = AuraColors.ElectricPurple),
-            onClick = onClick
-        )
+    val clickMod = if (onClick != null) {
+        Modifier.auraPressClickable(onClick = onClick)
     } else Modifier
 
     Column(
         modifier = modifier
             .testTag(testTag)
             .auraGlass(shape = shape)
-            .then(clickableMod)
+            .then(clickMod)
             .padding(16.dp),
         content = content
     )
@@ -72,7 +69,7 @@ fun AuraAlbumCard(
             .testTag(testTag)
             .width(cardWidth)
             .auraGlass(shape = RoundedCornerShape(AuraRadius.Medium))
-            .clickable(onClick = onClick)
+            .auraPressClickable(onClick = onClick)
             .padding(10.dp)
     ) {
         Box(
@@ -153,7 +150,7 @@ fun AuraArtistCard(
             .testTag(testTag)
             .width(cardWidth)
             .auraGlass(shape = RoundedCornerShape(AuraRadius.Medium))
-            .clickable(onClick = onClick)
+            .auraPressClickable(onClick = onClick)
             .padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {

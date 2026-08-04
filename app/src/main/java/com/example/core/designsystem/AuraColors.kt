@@ -21,7 +21,10 @@ object AuraColors {
     val ElectricPurple = Color(0xFF8A52F5)
     val NeonCyan = Color(0xFF00F2FE)
     val MagentaPulse = Color(0xFFFF007A)
+    val MagentaFlare = Color(0xFFFF007A)
     val GoldAmber = Color(0xFFFFB800)
+    val AmberGlow = Color(0xFFFFB800)
+    val EmeraldPulse = Color(0xFF00E676)
 
     // Status Colors
     val SuccessGreen = Color(0xFF00E676)

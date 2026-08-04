@@ -1,5 +1,7 @@
 package com.example.ui
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -16,17 +18,31 @@ import com.example.core.state.*
 import com.example.feature.auth.ForgotPasswordScreen
 import com.example.feature.auth.LoginScreen
 import com.example.feature.auth.SignUpScreen
+import com.example.feature.ai.AiAssistantScreen
+import com.example.feature.ai.AiInsightsScreen
 import com.example.feature.downloads.DownloadsScreen
 import com.example.feature.home.HomeScreen
+import com.example.feature.library.AlbumDetailScreen
+import com.example.feature.library.ArtistDetailScreen
 import com.example.feature.library.LibraryScreen
 import com.example.feature.player.PlayerScreen
 import com.example.feature.search.SearchScreen
 import com.example.feature.settings.SettingsScreen
+import com.example.feature.social.SocialHubScreen
+import com.example.feature.social.UserSocialProfileScreen
 import com.example.feature.user.ProfileScreen
 import com.example.navigation.AuraRoute
 
+private data class NavTargetState(
+    val route: AuraRoute,
+    val artistId: String?,
+    val albumId: String?,
+    val socialUserId: String?
+)
+
 @Composable
 fun AuraAppRoot(
+    initialRouteName: String? = null,
     themeState: ThemeState = viewModel(),
     userState: UserState = viewModel(),
     settingsState: SettingsState = viewModel(),
@@ -40,7 +56,21 @@ fun AuraAppRoot(
     val playerData by playerState.playerData.collectAsState()
 
     var currentRoute by remember { mutableStateOf(AuraRoute.HOME) }
+
+    LaunchedEffect(initialRouteName) {
+        if (initialRouteName != null) {
+            when (initialRouteName.uppercase()) {
+                "DOWNLOADS" -> currentRoute = AuraRoute.DOWNLOADS
+                "LIBRARY" -> currentRoute = AuraRoute.LIBRARY
+                "SEARCH" -> currentRoute = AuraRoute.SEARCH
+                "HOME" -> currentRoute = AuraRoute.HOME
+            }
+        }
+    }
     var showFullPlayer by remember { mutableStateOf(false) }
+    var activeArtistId by remember { mutableStateOf<String?>(null) }
+    var activeAlbumId by remember { mutableStateOf<String?>(null) }
+    var activeSocialUserId by remember { mutableStateOf<String?>(null) }
 
     // Screen width breakpoint calculation
     val configuration = LocalConfiguration.current
@@ -55,22 +85,23 @@ fun AuraAppRoot(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
         ) {
-            if (showFullPlayer && playerData.currentSong != null) {
-                PlayerScreen(
-                    onDismiss = { showFullPlayer = false },
-                    playerState = playerState
-                )
-            } else {
+            Box(modifier = Modifier.fillMaxSize()) {
+                // Main Application Layout & Viewport
                 Row(modifier = Modifier.fillMaxSize()) {
                     // Side Navigation Rail for Medium / Expanded screens (Tablets & Desktop)
                     if (windowSizeClass != WindowSizeClass.COMPACT) {
                         AuraSideNavigationRail(
                             currentRoute = currentRoute,
-                            onRouteSelected = { currentRoute = it }
+                            onRouteSelected = {
+                                activeArtistId = null
+                                activeAlbumId = null
+                                activeSocialUserId = null
+                                currentRoute = it
+                            }
                         )
                     }
 
-                    // Main Screen Viewport
+                    // Main Viewport
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -105,7 +136,12 @@ fun AuraAppRoot(
                                     if (windowSizeClass == WindowSizeClass.COMPACT && currentRoute != AuraRoute.LOGIN && currentRoute != AuraRoute.SIGN_UP && currentRoute != AuraRoute.FORGOT_PASSWORD) {
                                         AuraBottomNavigationBar(
                                             currentRoute = currentRoute,
-                                            onRouteSelected = { currentRoute = it }
+                                            onRouteSelected = {
+                                                activeArtistId = null
+                                                activeAlbumId = null
+                                                activeSocialUserId = null
+                                                currentRoute = it
+                                            }
                                         )
                                     }
                                 }
@@ -116,63 +152,155 @@ fun AuraAppRoot(
                                     .fillMaxSize()
                                     .padding(innerPadding)
                             ) {
-                                when (currentRoute) {
-                                    AuraRoute.HOME -> HomeScreen(
-                                        onSongSelect = {
-                                            playerState.playSong(it)
-                                            showFullPlayer = true
-                                        },
-                                        onAlbumSelect = {},
-                                        onArtistSelect = {}
-                                    )
-                                    AuraRoute.SEARCH -> SearchScreen(
-                                        onSongSelect = { song ->
-                                            playerState.playSong(song)
-                                            showFullPlayer = true
-                                        },
-                                        searchState = searchState
-                                    )
-                                    AuraRoute.LIBRARY -> LibraryScreen(
-                                        onSongSelect = { song ->
-                                            playerState.playSong(song)
-                                            showFullPlayer = true
-                                        },
-                                        libraryState = libraryState
-                                    )
-                                    AuraRoute.DOWNLOADS -> DownloadsScreen(
-                                        onSongSelect = { song ->
-                                            playerState.playSong(song)
-                                            showFullPlayer = true
-                                        },
-                                        downloadsState = downloadsState
-                                    )
-                                    AuraRoute.PROFILE -> ProfileScreen(
-                                        userState = userState,
-                                        onLogout = {
-                                            userState.logout()
-                                            currentRoute = AuraRoute.LOGIN
+                                AnimatedContent(
+                                    targetState = NavTargetState(currentRoute, activeArtistId, activeAlbumId, activeSocialUserId),
+                                    transitionSpec = {
+                                        (fadeIn(animationSpec = tween(220)) + slideInHorizontally(animationSpec = AuraMotion.auraSpring(), initialOffsetX = { 30 }))
+                                            .togetherWith(fadeOut(animationSpec = tween(150)))
+                                    },
+                                    label = "main_screen_transition"
+                                ) { navState ->
+                                    val (route, artistId, albumId, socialUserId) = navState
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        if (socialUserId != null) {
+                                            UserSocialProfileScreen(
+                                                userId = socialUserId,
+                                                onBackClick = { activeSocialUserId = null },
+                                                onPlaySong = { song ->
+                                                    playerState.playSong(song)
+                                                    showFullPlayer = true
+                                                },
+                                                onOpenPlaylist = { albumId -> activeAlbumId = albumId }
+                                            )
+                                        } else if (artistId != null) {
+                                            ArtistDetailScreen(
+                                                artistId = artistId,
+                                                onBackClick = { activeArtistId = null },
+                                                onPlaySong = { song ->
+                                                    playerState.playSong(song)
+                                                    showFullPlayer = true
+                                                },
+                                                onAlbumSelect = { album -> activeAlbumId = album.id },
+                                                onArtistSelect = { artist -> activeArtistId = artist.id },
+                                                playerState = playerState,
+                                                libraryState = libraryState
+                                            )
+                                        } else if (albumId != null) {
+                                            AlbumDetailScreen(
+                                                albumId = albumId,
+                                                onBackClick = { activeAlbumId = null },
+                                                onPlaySong = { song ->
+                                                    playerState.playSong(song)
+                                                    showFullPlayer = true
+                                                },
+                                                onArtistSelect = { selArtistId -> activeArtistId = selArtistId },
+                                                onAlbumSelect = { album -> activeAlbumId = album.id },
+                                                playerState = playerState,
+                                                libraryState = libraryState
+                                            )
+                                        } else {
+                                            when (route) {
+                                                AuraRoute.HOME -> HomeScreen(
+                                                    onSongSelect = {
+                                                        playerState.playSong(it)
+                                                        showFullPlayer = true
+                                                    },
+                                                    onAlbumSelect = { album -> activeAlbumId = album.id },
+                                                    onArtistSelect = { artist -> activeArtistId = artist.id }
+                                                )
+                                                AuraRoute.SEARCH -> SearchScreen(
+                                                    onSongSelect = { song ->
+                                                        playerState.playSong(song)
+                                                        showFullPlayer = true
+                                                    },
+                                                    searchState = searchState
+                                                )
+                                                AuraRoute.LIBRARY -> LibraryScreen(
+                                                    onSongSelect = { song ->
+                                                        playerState.playSong(song)
+                                                        showFullPlayer = true
+                                                    },
+                                                    libraryState = libraryState
+                                                )
+                                                AuraRoute.AI_ASSISTANT -> AiAssistantScreen(
+                                                    onNavigateToInsights = { currentRoute = AuraRoute.AI_INSIGHTS },
+                                                    onPlayTrack = { song, queue ->
+                                                        playerState.playSong(song)
+                                                        showFullPlayer = true
+                                                    }
+                                                )
+                                                AuraRoute.AI_INSIGHTS -> AiInsightsScreen(
+                                                    onNavigateBack = { currentRoute = AuraRoute.AI_ASSISTANT }
+                                                )
+                                                AuraRoute.SOCIAL -> SocialHubScreen(
+                                                    onPlaySong = { song ->
+                                                        playerState.playSong(song)
+                                                        showFullPlayer = true
+                                                    },
+                                                    onOpenProfile = { userId -> activeSocialUserId = userId },
+                                                    onOpenPlaylist = { albumId -> activeAlbumId = albumId }
+                                                )
+                                                AuraRoute.DOWNLOADS -> DownloadsScreen(
+                                                    onSongSelect = { song ->
+                                                        playerState.playSong(song)
+                                                        showFullPlayer = true
+                                                    },
+                                                    downloadsState = downloadsState
+                                                )
+                                                AuraRoute.PROFILE -> ProfileScreen(
+                                                    userState = userState,
+                                                    onLogout = {
+                                                        userState.logout()
+                                                        currentRoute = AuraRoute.LOGIN
+                                                    }
+                                                )
+                                                AuraRoute.SETTINGS -> SettingsScreen(
+                                                    themeState = themeState,
+                                                    settingsState = settingsState
+                                                )
+                                                AuraRoute.LOGIN -> LoginScreen(
+                                                    onNavigateToSignUp = { currentRoute = AuraRoute.SIGN_UP },
+                                                    onNavigateToForgotPassword = { currentRoute = AuraRoute.FORGOT_PASSWORD },
+                                                    onLoginSuccess = { currentRoute = AuraRoute.HOME }
+                                                )
+                                                AuraRoute.SIGN_UP -> SignUpScreen(
+                                                    onNavigateToLogin = { currentRoute = AuraRoute.LOGIN },
+                                                    onSignUpSuccess = { currentRoute = AuraRoute.HOME }
+                                                )
+                                                AuraRoute.FORGOT_PASSWORD -> ForgotPasswordScreen(
+                                                    onNavigateBack = { currentRoute = AuraRoute.LOGIN }
+                                                )
+                                            }
                                         }
-                                    )
-                                    AuraRoute.SETTINGS -> SettingsScreen(
-                                        themeState = themeState,
-                                        settingsState = settingsState
-                                    )
-                                    AuraRoute.LOGIN -> LoginScreen(
-                                        onNavigateToSignUp = { currentRoute = AuraRoute.SIGN_UP },
-                                        onNavigateToForgotPassword = { currentRoute = AuraRoute.FORGOT_PASSWORD },
-                                        onLoginSuccess = { currentRoute = AuraRoute.HOME }
-                                    )
-                                    AuraRoute.SIGN_UP -> SignUpScreen(
-                                        onNavigateToLogin = { currentRoute = AuraRoute.LOGIN },
-                                        onSignUpSuccess = { currentRoute = AuraRoute.HOME }
-                                    )
-                                    AuraRoute.FORGOT_PASSWORD -> ForgotPasswordScreen(
-                                        onNavigateBack = { currentRoute = AuraRoute.LOGIN }
-                                    )
+                                    }
                                 }
                             }
                         }
                     }
+                }
+
+                // Full Player Screen Modal Overlay with Spring Motion
+                AnimatedVisibility(
+                    visible = showFullPlayer && playerData.currentSong != null,
+                    enter = slideInVertically(
+                        initialOffsetY = { it },
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ) + fadeIn(animationSpec = tween(250)),
+                    exit = slideOutVertically(
+                        targetOffsetY = { it },
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMedium
+                        )
+                    ) + fadeOut(animationSpec = tween(200))
+                ) {
+                    PlayerScreen(
+                        onDismiss = { showFullPlayer = false },
+                        playerState = playerState
+                    )
                 }
             }
         }
@@ -188,6 +316,8 @@ private fun AuraBottomNavigationBar(
         AuraRoute.HOME,
         AuraRoute.SEARCH,
         AuraRoute.LIBRARY,
+        AuraRoute.AI_ASSISTANT,
+        AuraRoute.SOCIAL,
         AuraRoute.DOWNLOADS,
         AuraRoute.PROFILE,
         AuraRoute.SETTINGS
@@ -229,6 +359,8 @@ private fun AuraSideNavigationRail(
         AuraRoute.HOME,
         AuraRoute.SEARCH,
         AuraRoute.LIBRARY,
+        AuraRoute.AI_ASSISTANT,
+        AuraRoute.SOCIAL,
         AuraRoute.DOWNLOADS,
         AuraRoute.PROFILE,
         AuraRoute.SETTINGS

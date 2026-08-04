@@ -36,6 +36,7 @@ import com.example.core.designsystem.AuraRadius
 import com.example.core.designsystem.auraGlass
 import com.example.core.downloads.DownloadItem
 import com.example.core.downloads.DownloadState
+import com.example.core.offline.OfflineSortOption
 import com.example.core.provider.DownloadQuality
 import com.example.core.state.DownloadsState
 
@@ -53,8 +54,32 @@ fun DownloadsScreen(
     var showQualityDialog by remember { mutableStateOf(false) }
     var showClearConfirmDialog by remember { mutableStateOf(false) }
 
+    var offlineSearchQuery by remember { mutableStateOf("") }
+    var sortOption by remember { mutableStateOf(OfflineSortOption.DATE_DOWNLOADED) }
+    var showSortMenu by remember { mutableStateOf(false) }
+
     val tabs = remember {
-        listOf("All", "Active Queue", "Songs", "Albums & Playlists", "Smart Cache")
+        listOf("All", "Active Queue", "Songs", "Albums & Playlists", "Artists", "Smart Cache")
+    }
+
+    val filteredSongs = remember(data.downloadedSongs, offlineSearchQuery, sortOption) {
+        var list = if (offlineSearchQuery.isBlank()) {
+            data.downloadedSongs
+        } else {
+            val q = offlineSearchQuery.trim().lowercase()
+            data.downloadedSongs.filter {
+                it.title.lowercase().contains(q) ||
+                        it.artistName.lowercase().contains(q) ||
+                        it.albumTitle.lowercase().contains(q)
+            }
+        }
+
+        when (sortOption) {
+            OfflineSortOption.TITLE -> list.sortedBy { it.title }
+            OfflineSortOption.ARTIST -> list.sortedBy { it.artistName }
+            OfflineSortOption.DATE_DOWNLOADED -> list
+            OfflineSortOption.SIZE -> list.sortedByDescending { it.durationMs }
+        }
     }
 
     Scaffold(
@@ -85,35 +110,90 @@ fun DownloadsScreen(
                         )
                     }
 
-                    // Force Offline Switch Badge
-                    Surface(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .clickable { downloadsState.toggleOfflineMode(!data.isOfflineMode) },
-                        color = if (data.isOfflineMode) AuraColors.GoldAmber.copy(alpha = 0.2f) else AuraColors.DarkSurfaceVariant,
-                        shape = CircleShape,
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            if (data.isOfflineMode) AuraColors.GoldAmber else AuraColors.DarkGlassBorder
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // Sync status button
+                        IconButton(
+                            onClick = { downloadsState.triggerSync() },
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(AuraColors.DarkSurfaceVariant)
                         ) {
                             Icon(
-                                imageVector = if (data.isOfflineMode) Icons.Default.SignalCellularConnectedNoInternet0Bar else Icons.Default.Wifi,
-                                contentDescription = "Network Status",
-                                tint = if (data.isOfflineMode) AuraColors.GoldAmber else AuraColors.NeonCyan,
-                                modifier = Modifier.size(16.dp)
+                                imageVector = if (data.syncStatus.isSyncing) Icons.Default.Sync else Icons.Default.CloudSync,
+                                contentDescription = "Sync",
+                                tint = if (data.syncStatus.isSyncing) AuraColors.NeonCyan else Color.White,
+                                modifier = Modifier.size(20.dp)
                             )
-                            Text(
-                                text = if (data.isOfflineMode) "Offline Mode" else data.connectionTypeLabel.split(" ").first(),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = if (data.isOfflineMode) AuraColors.GoldAmber else Color.White
+                        }
+
+                        // Force Offline Switch Badge
+                        Surface(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .clickable { downloadsState.toggleOfflineMode(!data.isOfflineMode) },
+                            color = if (data.isOfflineMode) AuraColors.GoldAmber.copy(alpha = 0.2f) else AuraColors.DarkSurfaceVariant,
+                            shape = CircleShape,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (data.isOfflineMode) AuraColors.GoldAmber else AuraColors.DarkGlassBorder
                             )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (data.isOfflineMode) Icons.Default.SignalCellularConnectedNoInternet0Bar else Icons.Default.Wifi,
+                                    contentDescription = "Network Status",
+                                    tint = if (data.isOfflineMode) AuraColors.GoldAmber else AuraColors.NeonCyan,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = if (data.isOfflineMode) "Offline" else "Online",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (data.isOfflineMode) AuraColors.GoldAmber else Color.White
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Sync Banner if syncing
+            if (data.syncStatus.isSyncing) {
+                item {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(AuraRadius.Medium)),
+                        color = AuraColors.ElectricPurple.copy(alpha = 0.25f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                progress = { data.syncStatus.progress },
+                                modifier = Modifier.size(20.dp),
+                                color = AuraColors.NeonCyan,
+                                strokeWidth = 2.dp,
+                            )
+                            Column {
+                                Text(
+                                    text = "Smart Sync Active",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = data.syncStatus.syncStage,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
@@ -154,7 +234,6 @@ fun DownloadsScreen(
                                     .background(AuraColors.DarkSurface)
                             ) {
                                 Row(modifier = Modifier.fillMaxSize()) {
-                                    // Music Portion
                                     val musicRatio = (data.totalMusicStorageMb / (128 * 1024.0)).toFloat().coerceAtLeast(0.08f)
                                     Box(
                                         modifier = Modifier
@@ -162,7 +241,6 @@ fun DownloadsScreen(
                                             .weight(musicRatio)
                                             .background(AuraColors.ElectricPurple)
                                     )
-                                    // Cache Portion
                                     val cacheRatio = (data.cacheStorageMb / (128 * 1024.0)).toFloat().coerceAtLeast(0.06f)
                                     Box(
                                         modifier = Modifier
@@ -170,7 +248,6 @@ fun DownloadsScreen(
                                             .weight(cacheRatio)
                                             .background(AuraColors.NeonCyan)
                                     )
-                                    // Free Space
                                     Box(
                                         modifier = Modifier
                                             .fillMaxHeight()
@@ -213,7 +290,6 @@ fun DownloadsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Quality Selector Button
                             AssistChip(
                                 onClick = { showQualityDialog = true },
                                 label = { Text(data.downloadQuality.label, fontSize = 12.sp, color = Color.White) },
@@ -231,7 +307,6 @@ fun DownloadsScreen(
                                 )
                             )
 
-                            // Wi-Fi Only Switch
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -252,12 +327,116 @@ fun DownloadsScreen(
                                 )
                             }
 
-                            // Storage Actions
                             TextButton(onClick = { showClearConfirmDialog = true }) {
                                 Text(
                                     text = "Clean Space",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = AuraColors.GoldAmber
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Recently Downloaded Horizontal Carousel
+            if (data.recentlyDownloadedSongs.isNotEmpty()) {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Recently Downloaded",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(data.recentlyDownloadedSongs) { song ->
+                                Column(
+                                    modifier = Modifier
+                                        .width(110.dp)
+                                        .clickable {
+                                            val catalogSong = MusicCatalog.getSongById(song.id) ?: song
+                                            onSongSelect(catalogSong)
+                                        }
+                                ) {
+                                    AsyncImage(
+                                        model = song.coverUrl,
+                                        contentDescription = song.title,
+                                        modifier = Modifier
+                                            .size(110.dp)
+                                            .clip(RoundedCornerShape(AuraRadius.Medium)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = song.title,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = song.artistName,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Offline Search & Sort Bar
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AuraSearchBar(
+                        query = offlineSearchQuery,
+                        onQueryChange = { offlineSearchQuery = it },
+                        placeholder = "Search downloaded songs & artists...",
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    Box {
+                        IconButton(
+                            onClick = { showSortMenu = true },
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(AuraRadius.Medium))
+                                .background(AuraColors.DarkSurfaceVariant)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Sort,
+                                contentDescription = "Sort",
+                                tint = AuraColors.NeonCyan
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showSortMenu,
+                            onDismissRequest = { showSortMenu = false },
+                            modifier = Modifier.background(AuraColors.DarkSurfaceVariant)
+                        ) {
+                            OfflineSortOption.values().forEach { option ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = option.label,
+                                            color = if (sortOption == option) AuraColors.NeonCyan else Color.White
+                                        )
+                                    },
+                                    onClick = {
+                                        sortOption = option
+                                        showSortMenu = false
+                                    }
                                 )
                             }
                         }
@@ -275,8 +454,9 @@ fun DownloadsScreen(
                         val isSelected = selectedTab == index
                         val badgeCount = when (index) {
                             1 -> data.activeDownloads.size
-                            2 -> data.downloadedSongs.size
+                            2 -> filteredSongs.size
                             3 -> data.downloadedAlbums.size + data.downloadedPlaylists.size
+                            4 -> data.downloadedArtists.size
                             else -> null
                         }
 
@@ -291,7 +471,7 @@ fun DownloadsScreen(
 
             // --- TAB CONTENT ---
 
-            // Tab 1: Active Downloads / Queue Section (if selectedTab == 0 or 1)
+            // Tab 1: Active Downloads / Queue Section
             if (selectedTab == 0 || selectedTab == 1) {
                 if (data.activeDownloads.isNotEmpty() || data.pausedDownloads.isNotEmpty() || data.failedDownloads.isNotEmpty()) {
                     item {
@@ -332,18 +512,18 @@ fun DownloadsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Downloaded Songs (${data.downloadedSongs.size})",
+                            text = "Downloaded Songs (${filteredSongs.size})",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
-                        if (data.downloadedSongs.isNotEmpty()) {
+                        if (filteredSongs.isNotEmpty()) {
                             Text(
                                 text = "Play All Offline",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = AuraColors.NeonCyan,
                                 modifier = Modifier.clickable {
-                                    val catalogSong = MusicCatalog.getSongById(data.downloadedSongs.first().id) ?: data.downloadedSongs.first()
+                                    val catalogSong = MusicCatalog.getSongById(filteredSongs.first().id) ?: filteredSongs.first()
                                     onSongSelect(catalogSong)
                                 }
                             )
@@ -351,7 +531,7 @@ fun DownloadsScreen(
                     }
                 }
 
-                if (data.downloadedSongs.isEmpty() && (selectedTab == 2 || selectedTab == 0)) {
+                if (filteredSongs.isEmpty() && (selectedTab == 2 || selectedTab == 0)) {
                     item {
                         AuraEmptyState(
                             title = "No Downloaded Songs",
@@ -360,7 +540,7 @@ fun DownloadsScreen(
                         )
                     }
                 } else {
-                    items(data.downloadedSongs) { song ->
+                    items(filteredSongs) { song ->
                         val catalogSong = MusicCatalog.getSongById(song.id) ?: song
                         AuraListTile(
                             title = song.title,
@@ -426,8 +606,53 @@ fun DownloadsScreen(
                 }
             }
 
-            // Tab 4: Smart Cache Stats
-            if (selectedTab == 4) {
+            // Tab 4: Downloaded Artists
+            if (selectedTab == 0 || selectedTab == 4) {
+                if (data.downloadedArtists.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Downloaded Artists (${data.downloadedArtists.size})",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+
+                    items(data.downloadedArtists) { artist ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(AuraRadius.Medium))
+                                .background(AuraColors.DarkSurfaceVariant.copy(alpha = 0.6f))
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AuraAvatar(
+                                photoUrl = artist.avatarUrl,
+                                size = 44.dp,
+                                showFreeBadge = false
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = artist.artistName,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = "${artist.songCount} offline song(s)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Tab 5: Smart Cache Stats
+            if (selectedTab == 5) {
                 item {
                     AuraGlassCard(modifier = Modifier.fillMaxWidth()) {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -646,7 +871,6 @@ fun ActiveDownloadCard(
                     }
                 }
 
-                // Control Buttons
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     when (item.state) {
                         DownloadState.DOWNLOADING -> {
@@ -673,7 +897,6 @@ fun ActiveDownloadCard(
                 }
             }
 
-            // Progress Bar & Speed
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 AuraLinearProgress(progress = item.progress)
 

@@ -13,7 +13,7 @@ data class SongEntity(
     val albumTitle: String,
     val coverUrl: String,
     val durationMs: Long,
-    val audioUrl: String,
+    val audioUrl: String = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
     val isHdAudio: Boolean = true,
     val isExplicit: Boolean = false,
     val genre: String = "Electronic",

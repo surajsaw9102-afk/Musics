@@ -21,6 +21,7 @@ class UserState : ViewModel() {
                 username = "@alexvance",
                 email = "alex@auramusic.io",
                 photoUrl = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300",
+                bio = "Audiophile, Synthwave enthusiast & digital music collector.",
                 language = "English",
                 country = "United States",
                 themeMode = "DARK",
@@ -30,13 +31,23 @@ class UserState : ViewModel() {
     )
     val session: StateFlow<UserSession> = _session.asStateFlow()
 
-    fun updateProfile(displayName: String, username: String, email: String, language: String, country: String) {
+    fun updateProfile(
+        displayName: String,
+        username: String,
+        email: String,
+        photoUrl: String?,
+        bio: String,
+        language: String,
+        country: String
+    ) {
         val current = _session.value.user ?: return
         _session.value = _session.value.copy(
             user = current.copy(
                 displayName = displayName,
                 username = username,
                 email = email,
+                photoUrl = photoUrl,
+                bio = bio,
                 language = language,
                 country = country
             )
@@ -55,6 +66,7 @@ class UserState : ViewModel() {
                 displayName = "Music Lover",
                 username = "@guest_listener",
                 email = "guest@auramusic.io",
+                bio = "Free listener enjoying unlimited music streaming.",
                 isFreeMember = true
             )
         )
