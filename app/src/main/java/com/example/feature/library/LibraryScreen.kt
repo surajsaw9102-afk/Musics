@@ -54,6 +54,7 @@ fun LibraryScreen(
     var activeDetailScreen by remember { mutableStateOf<String?>(null) } // "PL_id", "ALB_id", "ART_id"
     var showCreateDialog by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
+    var selectedOverflowSong by remember { mutableStateOf<SongEntity?>(null) }
 
     // Navigation sub-routing check
     val detailKey = activeDetailScreen
@@ -265,7 +266,8 @@ fun LibraryScreen(
                             subtitle = "${sg.artistName} • Pinned Song",
                             coverUrl = sg.coverUrl,
                             isHdAudio = sg.isHdAudio,
-                            onClick = { onSongSelect(sg) }
+                            onClick = { onSongSelect(sg) },
+                            onMenuClick = { selectedOverflowSong = sg }
                         )
                     }
                     items(pinnedAlbums, key = { "pin_alb_${it.id}" }) { alb ->
@@ -420,7 +422,7 @@ fun LibraryScreen(
                                 onSongSelect(song)
                             },
                             onMenuClick = {
-                                libraryState.toggleLikeSong(song.id)
+                                selectedOverflowSong = song
                             }
                         )
                     }
@@ -562,6 +564,9 @@ fun LibraryScreen(
                             onClick = {
                                 libraryState.recordSongPlay(song.id)
                                 onSongSelect(song)
+                            },
+                            onMenuClick = {
+                                selectedOverflowSong = song
                             }
                         )
                     }
@@ -572,6 +577,18 @@ fun LibraryScreen(
                 Spacer(modifier = Modifier.height(100.dp))
             }
         }
+    }
+
+    if (selectedOverflowSong != null) {
+        val song = selectedOverflowSong!!
+        SongOverflowSheet(
+            song = song,
+            onDismiss = { selectedOverflowSong = null },
+            onPlayNow = {
+                onSongSelect(song)
+                selectedOverflowSong = null
+            }
+        )
     }
 
     // Create Playlist Dialog

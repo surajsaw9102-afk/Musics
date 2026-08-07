@@ -16,11 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.ElectricBolt
-import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,12 +44,17 @@ fun HomeScreen(
     onSongSelect: (SongEntity) -> Unit,
     onAlbumSelect: (AlbumEntity) -> Unit,
     onArtistSelect: (ArtistEntity) -> Unit,
+    onNavigateToProfile: (() -> Unit)? = null,
+    onNavigateToDownloads: (() -> Unit)? = null,
+    onNavigateToSettings: (() -> Unit)? = null,
+    onNavigateToSocial: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     viewModel: HomeState = viewModel(),
     testTag: String = "home_screen"
 ) {
     val feedState by viewModel.homeFeed.collectAsState()
     val categories = remember { listOf("All", "Made For You", "Chill", "Energy", "Focus") }
+    var selectedOverflowSong by remember { mutableStateOf<SongEntity?>(null) }
 
     Column(
         modifier = modifier
@@ -97,7 +98,27 @@ fun HomeScreen(
                         AuraFreeBadge()
                     }
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (onNavigateToSocial != null) {
+                            IconButton(onClick = onNavigateToSocial, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Default.People, contentDescription = "Social Hub", tint = Color.White, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                        if (onNavigateToDownloads != null) {
+                            IconButton(onClick = onNavigateToDownloads, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Default.CloudDownload, contentDescription = "Downloads", tint = Color.White, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                        if (onNavigateToSettings != null) {
+                            IconButton(onClick = onNavigateToSettings, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.White, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                        if (onNavigateToProfile != null) {
+                            IconButton(onClick = onNavigateToProfile, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Default.Person, contentDescription = "Profile", tint = AuraColors.NeonCyan, modifier = Modifier.size(18.dp))
+                            }
+                        }
                         IconButton(
                             onClick = { viewModel.refreshFeed() },
                             modifier = Modifier.size(32.dp)
@@ -105,7 +126,8 @@ fun HomeScreen(
                             Icon(
                                 imageVector = Icons.Default.Refresh,
                                 contentDescription = "Refresh Feed",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
@@ -214,11 +236,24 @@ fun HomeScreen(
                         onArtistSelect = onArtistSelect,
                         onLikeToggle = { song, isLiked ->
                             viewModel.onSongLiked(song, isLiked)
-                        }
+                        },
+                        onSongOverflow = { song -> selectedOverflowSong = song }
                     )
                 }
             }
         }
+    }
+
+    if (selectedOverflowSong != null) {
+        val song = selectedOverflowSong!!
+        com.example.core.components.SongOverflowSheet(
+            song = song,
+            onDismiss = { selectedOverflowSong = null },
+            onPlayNow = {
+                onSongSelect(song)
+                selectedOverflowSong = null
+            }
+        )
     }
 }
 
@@ -228,7 +263,8 @@ private fun HomeSectionView(
     onSongSelect: (SongEntity) -> Unit,
     onAlbumSelect: (AlbumEntity) -> Unit,
     onArtistSelect: (ArtistEntity) -> Unit,
-    onLikeToggle: (SongEntity, Boolean) -> Unit
+    onLikeToggle: (SongEntity, Boolean) -> Unit,
+    onSongOverflow: (SongEntity) -> Unit = {}
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         // Header with Rationale Badge if available
@@ -365,7 +401,7 @@ private fun HomeSectionView(
                             coverUrl = song.coverUrl,
                             isHdAudio = song.isHdAudio,
                             onClick = { onSongSelect(song) },
-                            onMenuClick = {}
+                            onMenuClick = { onSongOverflow(song) }
                         )
                     }
                 }

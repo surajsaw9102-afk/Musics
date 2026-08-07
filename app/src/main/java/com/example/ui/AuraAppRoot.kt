@@ -206,7 +206,11 @@ fun AuraAppRoot(
                                                         showFullPlayer = true
                                                     },
                                                     onAlbumSelect = { album -> activeAlbumId = album.id },
-                                                    onArtistSelect = { artist -> activeArtistId = artist.id }
+                                                    onArtistSelect = { artist -> activeArtistId = artist.id },
+                                                    onNavigateToProfile = { currentRoute = AuraRoute.PROFILE },
+                                                    onNavigateToDownloads = { currentRoute = AuraRoute.DOWNLOADS },
+                                                    onNavigateToSettings = { currentRoute = AuraRoute.SETTINGS },
+                                                    onNavigateToSocial = { currentRoute = AuraRoute.SOCIAL }
                                                 )
                                                 AuraRoute.SEARCH -> SearchScreen(
                                                     onSongSelect = { song ->
@@ -228,6 +232,12 @@ fun AuraAppRoot(
                                                         playerState.playSong(song)
                                                         showFullPlayer = true
                                                     }
+                                                )
+                                                AuraRoute.QUEUE -> com.example.feature.player.QueueScreen(
+                                                    playerData = playerData,
+                                                    playerState = playerState,
+                                                    onBackClick = { currentRoute = AuraRoute.HOME },
+                                                    onNavigateToBrowse = { currentRoute = AuraRoute.HOME }
                                                 )
                                                 AuraRoute.AI_INSIGHTS -> AiInsightsScreen(
                                                     onNavigateBack = { currentRoute = AuraRoute.AI_ASSISTANT }
@@ -299,6 +309,10 @@ fun AuraAppRoot(
                 ) {
                     PlayerScreen(
                         onDismiss = { showFullPlayer = false },
+                        onOpenQueue = {
+                            showFullPlayer = false
+                            currentRoute = AuraRoute.QUEUE
+                        },
                         playerState = playerState
                     )
                 }
@@ -312,15 +326,12 @@ private fun AuraBottomNavigationBar(
     currentRoute: AuraRoute,
     onRouteSelected: (AuraRoute) -> Unit
 ) {
+    // Only 4 primary destinations in bottom navigation
     val navRoutes = listOf(
         AuraRoute.HOME,
         AuraRoute.SEARCH,
         AuraRoute.LIBRARY,
-        AuraRoute.AI_ASSISTANT,
-        AuraRoute.SOCIAL,
-        AuraRoute.DOWNLOADS,
-        AuraRoute.PROFILE,
-        AuraRoute.SETTINGS
+        AuraRoute.AI_ASSISTANT
     )
 
     NavigationBar(
@@ -360,6 +371,7 @@ private fun AuraSideNavigationRail(
         AuraRoute.SEARCH,
         AuraRoute.LIBRARY,
         AuraRoute.AI_ASSISTANT,
+        AuraRoute.QUEUE,
         AuraRoute.SOCIAL,
         AuraRoute.DOWNLOADS,
         AuraRoute.PROFILE,

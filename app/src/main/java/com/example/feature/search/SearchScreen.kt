@@ -49,6 +49,7 @@ fun SearchScreen(
     testTag: String = "search_screen"
 ) {
     val searchData by searchState.searchData.collectAsState()
+    var selectedOverflowSong by remember { mutableStateOf<SongEntity?>(null) }
 
     Column(
         modifier = modifier
@@ -177,16 +178,30 @@ fun SearchScreen(
             DiscoveryModeContent(
                 searchData = searchData,
                 searchState = searchState,
-                onSongSelect = onSongSelect
+                onSongSelect = onSongSelect,
+                onSongOverflow = { selectedOverflowSong = it }
             )
         } else {
             // STATE B: ACTIVE SEARCH RESULTS MODE
             ActiveSearchResultsContent(
                 searchData = searchData,
                 searchState = searchState,
-                onSongSelect = onSongSelect
+                onSongSelect = onSongSelect,
+                onSongOverflow = { selectedOverflowSong = it }
             )
         }
+    }
+
+    if (selectedOverflowSong != null) {
+        val song = selectedOverflowSong!!
+        SongOverflowSheet(
+            song = song,
+            onDismiss = { selectedOverflowSong = null },
+            onPlayNow = {
+                onSongSelect(song)
+                selectedOverflowSong = null
+            }
+        )
     }
 
     // Voice Search Popup Dialog
@@ -211,7 +226,8 @@ fun SearchScreen(
 private fun DiscoveryModeContent(
     searchData: SearchData,
     searchState: SearchState,
-    onSongSelect: (SongEntity) -> Unit
+    onSongSelect: (SongEntity) -> Unit,
+    onSongOverflow: (SongEntity) -> Unit = {}
 ) {
     Column {
         // Recent Searches
@@ -439,7 +455,8 @@ private fun DiscoveryModeContent(
                     onClick = {
                         searchState.addRecentSearch(song.title)
                         onSongSelect(song)
-                    }
+                    },
+                    onMenuClick = { onSongOverflow(song) }
                 )
             }
         }
@@ -450,7 +467,8 @@ private fun DiscoveryModeContent(
 private fun ActiveSearchResultsContent(
     searchData: SearchData,
     searchState: SearchState,
-    onSongSelect: (SongEntity) -> Unit
+    onSongSelect: (SongEntity) -> Unit,
+    onSongOverflow: (SongEntity) -> Unit = {}
 ) {
     val results = searchData.searchResults
 
@@ -659,7 +677,8 @@ private fun ActiveSearchResultsContent(
                         onClick = {
                             searchState.addRecentSearch(song.title)
                             onSongSelect(song)
-                        }
+                        },
+                        onMenuClick = { onSongOverflow(song) }
                     )
                 }
             }

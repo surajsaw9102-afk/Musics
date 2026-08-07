@@ -61,6 +61,7 @@ enum class PlayerTab {
 @Composable
 fun PlayerScreen(
     onDismiss: () -> Unit,
+    onOpenQueue: () -> Unit = {},
     playerState: PlayerState = viewModel(),
     modifier: Modifier = Modifier,
     testTag: String = "player_screen"
@@ -73,7 +74,7 @@ fun PlayerScreen(
     var isUserScrubbing by remember { mutableStateOf(false) }
     var scrubProgressFraction by remember { mutableFloatStateOf(0f) }
     var showQueueSheet by remember { mutableStateOf(false) }
-    var showQuickActionsDialog by remember { mutableStateOf(false) }
+    var showSongOverflowSheet by remember { mutableStateOf(false) }
     var showLikeHeartBurst by remember { mutableStateOf(false) }
 
     val duration = if (playerData.durationMs > 0) playerData.durationMs else song.durationMs
@@ -165,13 +166,16 @@ fun PlayerScreen(
                     AuraIconButton(
                         icon = Icons.AutoMirrored.Filled.QueueMusic,
                         contentDescription = "Queue",
-                        onClick = { showQueueSheet = true },
+                        onClick = {
+                            onDismiss()
+                            onOpenQueue()
+                        },
                         size = 40.dp
                     )
                     AuraIconButton(
                         icon = Icons.Default.MoreVert,
                         contentDescription = "More Options",
-                        onClick = { showQuickActionsDialog = true },
+                        onClick = { showSongOverflowSheet = true },
                         size = 40.dp
                     )
                 }
@@ -273,7 +277,7 @@ fun PlayerScreen(
                                     playerState.toggleLike()
                                     showLikeHeartBurst = true
                                 },
-                                onLongPress = { showQuickActionsDialog = true },
+                                onLongPress = { showSongOverflowSheet = true },
                                 onSwipeNext = { playerState.skipNext() },
                                 onSwipePrevious = { playerState.skipPrevious() }
                             )
@@ -546,26 +550,25 @@ fun PlayerScreen(
         QueueBottomSheet(
             playerData = playerData,
             playerState = playerState,
-            onDismiss = { showQueueSheet = false }
+            onDismiss = { showQueueSheet = false },
+            onOpenFullQueue = {
+                onDismiss()
+                onOpenQueue()
+            }
         )
     }
 
-    // Quick Actions Dialog (Long Press or More Button)
-    if (showQuickActionsDialog) {
-        QuickActionsDialog(
+    // Song Overflow Sheet (Three-Dot Menu)
+    if (showSongOverflowSheet) {
+        SongOverflowSheet(
             song = song,
-            onDismiss = { showQuickActionsDialog = false },
-            onShare = {
-                val shareIntent = Intent().apply {
-                    action = Intent.ACTION_SEND
-                    putExtra(
-                        Intent.EXTRA_TEXT,
-                        "Listening to ${song.title} by ${song.artistName} on Aura Music! 🎵 100% Free Lossless Audio."
-                    )
-                    type = "text/plain"
-                }
-                context.startActivity(Intent.createChooser(shareIntent, "Share Track"))
-            }
+            onDismiss = { showSongOverflowSheet = false },
+            onPlayNow = { playerState.playSong(song) },
+            onPlayNext = { playerState.addNext(song) },
+            onPlayLater = { playerState.addToQueue(song) },
+            onAddToPlaylist = { playerState.saveQueueAsPlaylist("Playlist - ${song.title}") },
+            onToggleLike = { playerState.toggleLike() },
+            isLiked = playerData.isLiked
         )
     }
 }

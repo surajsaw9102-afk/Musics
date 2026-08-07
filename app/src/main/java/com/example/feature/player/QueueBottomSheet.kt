@@ -31,7 +31,8 @@ import com.example.core.state.PlayerState
 fun QueueBottomSheet(
     playerData: PlayerData,
     playerState: PlayerState,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onOpenFullQueue: () -> Unit = {}
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -72,8 +73,21 @@ fun QueueBottomSheet(
                     )
                 }
 
-                if (playerData.queue.isNotEmpty()) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = {
+                            onDismiss()
+                            onOpenFullQueue()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.OpenInFull,
+                            contentDescription = "Full Queue Page",
+                            tint = AuraColors.NeonCyan
+                        )
+                    }
+
+                    if (playerData.queue.isNotEmpty()) {
                         var showSavePlaylistDialog by remember { mutableStateOf(false) }
                         var playlistNameInput by remember { mutableStateOf("") }
 
